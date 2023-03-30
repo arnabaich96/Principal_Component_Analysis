@@ -1,0 +1,67 @@
+---
+title: "Homework_11"
+author: "Arnab Aich"
+date: "`r Sys.Date()`"
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(imager)
+library(magick)
+library(magickGUI)
+library(tidyverse)
+library(png)
+library(ggplot2)
+library(dplyr)
+
+```
+
+# Setiing Up images as data matrices for further computation
+```{r}
+# seting data directory
+dir <- "D:/OneDrive - Florida State University/MyFSU_OneDrive/FSU Course Work/5635/Datasets/faces/faces"
+
+# making a list of .pgm files
+pgm_files <- list.files(dir, pattern = ".pgm", full.names = TRUE)
+# Converting .pgm files to .png
+for (file in pgm_files) {
+  img <- image_read(file)
+  png_file <- gsub(".pgm", ".png", file)
+  image_write(img, path = png_file, format = "png")
+}
+# list of .png files
+png_files <- list.files(dir,pattern = ".png", full.names = TRUE)
+
+# read face images into a list
+faces <- lapply(png_files,readPNG)
+
+# convert face images to a matrix
+faces_matrix <- do.call(rbind, lapply(faces, as.vector))
+```
+
+
+
+```{r}
+# perform PCA and extract eigenvalues
+pca <- prcomp(faces_matrix, center = TRUE, scale. = TRUE)
+eigenvalues <- pca$sdev^2
+
+# plot sorted eigenvalues
+eig_df <- data.frame(eigenvalues) %>% 
+  mutate(eigenvalue_index = 1:length(eigenvalues)) %>%
+  arrange(desc(eigenvalues)) %>%
+  mutate(cumulative_proportion = cumsum(eigenvalues)/sum(eigenvalues),
+         proportion = eigenvalues/sum(eigenvalues))
+  
+ggplot(eig_df, aes(x = eigenvalue_index, y = eigenvalues)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "Eigenvalue Index", y = "Eigenvalue") +
+  theme_minimal()
+
+# discard two largest eigenvalues
+pca$x[, 1:2] <- 0
+
+```
+
